@@ -9,6 +9,10 @@ jobs:
   digest:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: ./유튜브 주제별 정리
+
     steps:
       - uses: actions/checkout@v4
 
