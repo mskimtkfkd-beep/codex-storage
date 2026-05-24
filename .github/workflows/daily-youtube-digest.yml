@@ -29,15 +29,13 @@ jobs:
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
           GOOGLE_SPREADSHEET_ID: ${{ secrets.GOOGLE_SPREADSHEET_ID }}
-          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
         run: |
           missing=()
           for name in \
             YOUTUBE_CLIENT_ID \
             YOUTUBE_CLIENT_SECRET \
             YOUTUBE_REFRESH_TOKEN \
-            GOOGLE_SPREADSHEET_ID \
-            GOOGLE_SERVICE_ACCOUNT_JSON
+            GOOGLE_SPREADSHEET_ID
           do
             if [ -z "${!name}" ]; then
               missing+=("$name")
