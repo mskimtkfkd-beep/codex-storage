@@ -95,6 +95,9 @@ class VideoClassifier:
                             "channel": video.channel_title,
                             "description": video.description[:4000],
                             "publishedAt": video.published_at.isoformat(),
+                            "channelImportance": video.channel_importance,
+                            "defaultTopic": video.default_topic,
+                            "summaryRequired": video.summary_required,
                             "topics": self.topic_config.topics,
                         },
                         ensure_ascii=False,
@@ -121,6 +124,8 @@ class VideoClassifier:
             selected_topic = _best_topic(classification_text, self.topic_config.keyword_map)
         if selected_topic == DEFAULT_TOPIC:
             selected_topic = self._topic_from_channel(video.channel_title)
+        if selected_topic == DEFAULT_TOPIC and video.default_topic in self.topic_config.topics:
+            selected_topic = video.default_topic
 
         description = video.description.strip().replace("\n", " ")
         if description:
@@ -135,7 +140,7 @@ class VideoClassifier:
             topic=selected_topic,
             subtopic="자동 키워드 분류",
             summary_ko=summary,
-            watch_priority="Medium",
+            watch_priority=_priority_from_importance(video.channel_importance),
             keywords=_matched_keywords(summary_text, self.topic_config.keyword_map.get(selected_topic, [])),
         )
 
@@ -191,3 +196,12 @@ def _best_topic(text: str, keyword_map: dict[str, list[str]]) -> str:
             best_topic = topic
             best_score = score
     return best_topic
+
+
+def _priority_from_importance(importance: str) -> str:
+    normalized = importance.strip().lower()
+    if normalized == "high":
+        return "High"
+    if normalized == "low":
+        return "Low"
+    return "Medium"

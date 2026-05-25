@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Iterable
 
-from .models import ActivityUpload, SubscriptionChannel, VideoDetails
+from .models import ActivityUpload, SubscriptionChannel, TrackedChannel, VideoDetails
 
 LOGGER = logging.getLogger(__name__)
 
@@ -20,20 +20,24 @@ class YouTubeApiError(RuntimeError):
 class YouTubeClient:
     def __init__(
         self,
-        client_id: str,
-        client_secret: str,
-        refresh_token: str,
+        client_id: str | None = None,
+        client_secret: str | None = None,
+        refresh_token: str | None = None,
+        api_key: str | None = None,
         session: Any | None = None,
         max_retries: int = 3,
     ) -> None:
         self.client_id = client_id
         self.client_secret = client_secret
         self.refresh_token = refresh_token
+        self.api_key = api_key
         self.session = session or _new_requests_session()
         self.max_retries = max_retries
         self._access_token: str | None = None
 
     def refresh_access_token(self) -> str:
+        if not self.client_id or not self.client_secret or not self.refresh_token:
+            raise YouTubeApiError("OAuth credentials are required when YOUTUBE_API_KEY is not configured")
         response = self.session.post(
             TOKEN_URL,
             data={
@@ -53,15 +57,19 @@ class YouTubeClient:
         return token
 
     def _request(self, path: str, params: dict[str, Any]) -> dict[str, Any]:
-        if not self._access_token:
+        request_params = dict(params)
+        headers = {}
+        if self.api_key:
+            request_params["key"] = self.api_key
+        elif not self._access_token:
             self.refresh_access_token()
-
+        if self._access_token:
+            headers = {"Authorization": f"Bearer {self._access_token}"}
         url = f"{YOUTUBE_API_BASE}/{path}"
-        headers = {"Authorization": f"Bearer {self._access_token}"}
 
         for attempt in range(1, self.max_retries + 1):
-            response = self.session.get(url, params=params, headers=headers, timeout=30)
-            if response.status_code == 401 and attempt == 1:
+            response = self.session.get(url, params=request_params, headers=headers, timeout=30)
+            if not self.api_key and response.status_code == 401 and attempt == 1:
                 self.refresh_access_token()
                 headers = {"Authorization": f"Bearer {self._access_token}"}
                 continue
@@ -158,13 +166,67 @@ class YouTubeClient:
         LOGGER.info("Fetched upload activities channel=%s count=%s", channel.title, len(uploads))
         return uploads
 
+    def get_upload_playlist_id(self, channel: TrackedChannel) -> str:
+        params = {
+            "part": "snippet,contentDetails",
+            "id": channel.channel_id,
+            "maxResults": 1,
+        }
+        data = self._request("channels", params)
+        items = data.get("items", [])
+        if not items:
+            raise YouTubeApiError(f"YouTube channel not found: {channel.channel_id}")
+        playlist_id = (
+            items[0]
+            .get("contentDetails", {})
+            .get("relatedPlaylists", {})
+            .get("uploads")
+        )
+        if not playlist_id:
+            raise YouTubeApiError(f"YouTube channel has no uploads playlist: {channel.channel_id}")
+        return playlist_id
+
+    def list_recent_playlist_uploads(
+        self,
+        channel: TrackedChannel,
+        uploads_playlist_id: str,
+        published_after: datetime,
+    ) -> list[ActivityUpload]:
+        params = {
+            "part": "snippet,contentDetails",
+            "playlistId": uploads_playlist_id,
+            "maxResults": 50,
+        }
+        uploads: list[ActivityUpload] = []
+        for page in self._paged_request("playlistItems", params):
+            for item in page.get("items", []):
+                snippet = item.get("snippet", {})
+                video_id = (
+                    snippet.get("resourceId", {}).get("videoId")
+                    or item.get("contentDetails", {}).get("videoId")
+                )
+                if not video_id or "publishedAt" not in snippet:
+                    continue
+                published_at = parse_youtube_datetime(snippet["publishedAt"])
+                if published_at < published_after:
+                    continue
+                uploads.append(
+                    ActivityUpload(
+                        video_id=video_id,
+                        channel_id=channel.channel_id,
+                        channel_title=channel.title,
+                        published_at=published_at,
+                    )
+                )
+        LOGGER.info("Fetched playlist uploads channel=%s count=%s", channel.title, len(uploads))
+        return uploads
+
     def get_videos(self, video_ids: list[str]) -> list[VideoDetails]:
         videos: list[VideoDetails] = []
         for batch in _chunks(_dedupe(video_ids), 50):
             params = {
                 "part": "snippet,contentDetails,statistics",
                 "id": ",".join(batch),
-                "maxResults": 50,
             }
             data = self._request("videos", params)
             for item in data.get("items", []):

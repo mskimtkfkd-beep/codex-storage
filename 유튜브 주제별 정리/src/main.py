@@ -16,19 +16,18 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Generate a YouTube subscription digest.")
     parser.add_argument("--dry-run", action="store_true", help="Print classified videos instead of writing Sheets.")
     parser.add_argument("--topic-config", default="config/topics.yaml")
+    parser.add_argument("--channel-config", default=None)
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
-    config = load_app_config(args.topic_config)
+    config = load_app_config(args.topic_config, channel_path=args.channel_config)
 
     youtube_client = YouTubeClient(
-        client_id=config.youtube_client_id,
-        client_secret=config.youtube_client_secret,
-        refresh_token=config.youtube_refresh_token,
+        api_key=config.youtube_api_key,
     )
     videos = collect_recent_videos(
         youtube_client,
-        tracked_channels=config.topic_config.tracked_channels,
+        configured_channels=config.channels,
     )
 
     classifier = VideoClassifier(

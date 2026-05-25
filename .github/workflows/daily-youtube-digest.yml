@@ -25,17 +25,15 @@ jobs:
 
       - name: Validate required secrets
         env:
-          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
-          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
-          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
           GOOGLE_SPREADSHEET_ID: ${{ secrets.GOOGLE_SPREADSHEET_ID }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
         run: |
           missing=()
           for name in \
-            YOUTUBE_CLIENT_ID \
-            YOUTUBE_CLIENT_SECRET \
-            YOUTUBE_REFRESH_TOKEN \
-            GOOGLE_SPREADSHEET_ID
+            YOUTUBE_API_KEY \
+            GOOGLE_SPREADSHEET_ID \
+            GOOGLE_SERVICE_ACCOUNT_JSON
           do
             if [ -z "${!name}" ]; then
               missing+=("$name")
@@ -49,13 +47,10 @@ jobs:
 
       - name: Run digest
         env:
-          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
-          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
-          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ALLOW_RULE_BASED_CLASSIFIER: ${{ vars.ALLOW_RULE_BASED_CLASSIFIER || 'true' }}
           GOOGLE_SPREADSHEET_ID: ${{ secrets.GOOGLE_SPREADSHEET_ID }}
           GOOGLE_SHEET_NAME: ${{ vars.GOOGLE_SHEET_NAME || '__RUN_TIMESTAMP__' }}
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
-          GOOGLE_SHEETS_REFRESH_TOKEN: ${{ secrets.GOOGLE_SHEETS_REFRESH_TOKEN }}
         run: python -m src.main

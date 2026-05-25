@@ -13,6 +13,15 @@ class SubscriptionChannel:
 
 
 @dataclass(frozen=True)
+class TrackedChannel:
+    channel_id: str
+    title: str
+    importance: str = "medium"
+    default_topic: str = ""
+    summary_required: bool = True
+
+
+@dataclass(frozen=True)
 class ActivityUpload:
     video_id: str
     channel_id: str
@@ -32,6 +41,9 @@ class VideoDetails:
     duration: str
     view_count: int | None
     url: str
+    channel_importance: str = "medium"
+    default_topic: str = ""
+    summary_required: bool = True
 
 
 @dataclass(frozen=True)
@@ -42,4 +54,3 @@ class ClassifiedVideo:
     summary_ko: str
     watch_priority: str
     keywords: list[str] = field(default_factory=list)
-

@@ -1,0 +1,9 @@
+channels:
+  # Add or exclude channels by editing this file.
+  # Use the stable YouTube channel ID, not the display name.
+  - id: UC_REPLACE_WITH_CHANNEL_ID
+    title: Example Channel
+    enabled: false
+    importance: medium
+    default_topic: 기타
+    summary_required: true
